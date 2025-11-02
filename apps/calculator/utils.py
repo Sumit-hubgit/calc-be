@@ -60,6 +60,7 @@ def analyze_image(img: Image, dict_of_vars: dict):
         f"Include any user variables from: {dict_of_vars_str}. "
         f"Return ONLY valid JSON. DO NOT USE BACKTICKS, MARKDOWN, OR PYTHON DICT SYNTAX. "
         f"Keys and strings must be properly quoted."
+        f"add white spaces on your own in the response."
     )
 
     # Generate response from Gemini

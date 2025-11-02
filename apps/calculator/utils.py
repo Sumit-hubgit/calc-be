@@ -28,6 +28,7 @@
 
 import google.generativeai as genai
 import json
+import re
 from PIL import Image
 from constants import GEMINI_API_KEY
 
@@ -43,41 +44,42 @@ def analyze_image(img: Image, dict_of_vars: dict):
     
     prompt = (
         f"You have been given an image with some mathematical expressions, equations, or graphical problems, "
-    f"and you need to solve them. "
-    f"Use PEMDAS for mathematical expressions. "
-    f"For example: "
-    f"Q. 2 + 3 * 4 -> (3*4)=12, 2+12=14. "
-    f"Q. 2 + 3 + 5 * 4 - 8 / 2 -> 21. "
-    f"Only one type of problem will appear: "
-    f"1. Simple math expressions: return a LIST of ONE DICT like "
-    f"[{{'expr': '2 + 2', 'result': 4}}]. "
-    f"2. Equations with variables: return COMMA SEPARATED DICTS, each with 'expr', 'result', 'assign': True. "
-    f"3. Variable assignments like x=4: return LIST of DICTS with 'assign': True. "
-    f"4. Graphical math problems: return LIST of ONE DICT like [{{'expr': '<description>', 'result': '<answer>'}}]. "
-    f"5. Abstract concepts: return same format as above. "
-    f"Include any user variables from: {dict_of_vars_str}. "
-    f"Return ONLY valid JSON. DO NOT USE BACKTICKS, MARKDOWN, OR PYTHON DICT SYNTAX. "
-    f"Keys and strings must be properly quoted."
+        f"and you need to solve them. "
+        f"Use PEMDAS for mathematical expressions. "
+        f"For example: "
+        f"Q. 2 + 3 * 4 -> (3*4)=12, 2+12=14. "
+        f"Q. 2 + 3 + 5 * 4 - 8 / 2 -> 21. "
+        f"Only one type of problem will appear: "
+        f"1. Simple math expressions: return a LIST of ONE DICT like "
+        f"[{{'expr': '2 + 2', 'result': 4}}]. "
+        f"2. Equations with variables: return COMMA SEPARATED DICTS, each with 'expr', 'result', 'assign': True. "
+        f"3. Variable assignments like x=4: return LIST of DICTS with 'assign': True. "
+        f"4. Graphical math problems: return LIST of ONE DICT like "
+        f"[{{'expr': '<description>', 'result': '<answer>'}}]. "
+        f"5. Abstract concepts: return same format as above. "
+        f"Include any user variables from: {dict_of_vars_str}. "
+        f"Return ONLY valid JSON. DO NOT USE BACKTICKS, MARKDOWN, OR PYTHON DICT SYNTAX. "
+        f"Keys and strings must be properly quoted."
     )
 
     # Generate response from Gemini
     response = model.generate_content([prompt, img])
     print("Raw response from Gemini:", response.text)
 
+    # Remove any Markdown or triple backticks from the response
+    clean_text = re.sub(r"^```(?:json)?|```$", "", response.text.strip(), flags=re.MULTILINE)
+
     # Parse response as JSON
     answers = []
     try:
-        answers = json.loads(response.text)
+        answers = json.loads(clean_text)
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON from Gemini API: {e}")
         print("Raw response was:", response.text)
 
     # Ensure every answer has 'assign' key
     for answer in answers:
-        if 'assign' in answer:
-            answer['assign'] = True
-        else:
-            answer['assign'] = False
+        answer['assign'] = answer.get('assign', False)
 
     print("Processed answers:", answers)
     return answers
